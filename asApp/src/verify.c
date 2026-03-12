@@ -122,6 +122,7 @@ int do_asVerify_fp(FILE *fp, int verbose, int debug, int write_restore_file, cha
     }
 
     while ((bp = fgets(s, BUF_SIZE, fp))) {
+        int name_len = 0;
         if (debug > 3) printf("\nasVerify: buffer '%s'\n", bp);
         if (bp[0] == '#') {
             /* A PV to which autosave could not connect, or just a comment in the file. */
@@ -130,10 +131,18 @@ int do_asVerify_fp(FILE *fp, int verbose, int debug, int write_restore_file, cha
             continue;
         }
         /* NOTE value_string must have room for nearly  BUF_SIZE characters */
-        n = sscanf(bp, "%80s%c%[^\n\r]", PVname, &c, value_string);
+        n = sscanf(bp, "%*s%n%c%[^\n\r]", &name_len, &c, value_string);
+        /* PVname can store one more character than PV_NAME_LEN. */
+        if (name_len <= PV_NAME_LEN) {
+            strncpy(PVname, bp, name_len);
+            PVname[name_len] = '\0';
+        } else {
+            strncpy(PVname, bp, PV_NAME_LEN);
+            PVname[PV_NAME_LEN] = '\0';
+        }
         if (debug > 3)
             printf("\nasVerify: PVname='%s', value_string[%d]='%s'\n", PVname, (int)strlen(value_string), value_string);
-        if (n < 3) *value_string = 0;
+        if (n < 2) *value_string = 0;
         if (strlen(PVname) >= PVNAME_STRINGSZ) {
             /* Impossible PV name */
             if (write_restore_file) fprintf(fr, "#? %s", bp);
